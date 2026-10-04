@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Galaxia de flores amarillas</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#f7c948;--ink:#05030d;--text:#fff6d6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;background:var(--ink);overflow:hidden;color:var(--text);font-family:'Cormorant Garamond',Georgia,serif}
+canvas{position:fixed;inset:0;width:100%;height:100%}
+#start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--ink);z-index:5;text-align:center;cursor:pointer;transition:opacity 1.4s}
+#start.off{opacity:0;pointer-events:none}
+#start .sun{font-size:64px}
+#start p{margin:0;font-size:24px;font-style:italic}
+#start label{font:14px system-ui,sans-serif;color:#cdbf8c;border-bottom:1px solid #6b5f33;padding-bottom:2px;cursor:pointer}
+#start input{display:none}
+.item{position:fixed;left:0;top:0;will-change:transform,opacity;pointer-events:none;text-align:center}
+.item.t{font-size:clamp(20px,4.6vw,30px);font-style:italic;width:min(70vw,320px);text-shadow:0 0 14px rgba(247,201,72,.55);line-height:1.2}
+.item.p{width:clamp(78px,20vw,120px);aspect-ratio:3/4;object-fit:cover;border-radius:6px;border:2px solid var(--gold);box-shadow:0 0 22px rgba(247,201,72,.45)}
+@media (prefers-reduced-motion:reduce){#start{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="start" role="button" tabindex="0">
+  <div class="sun">🌻</div>
+  <p>Toca para iniciar</p>
+  <label for="f" onclick="event.stopPropagation()">Agregar mis fotos (opcional)</label>
+  <input id="f" type="file" accept="image/*" multiple>
+</div>
+<script>
+// ====== PERSONALIZA AQUÍ ======
+const FRASES = [
+  "Eres mi galaxia favorita",
+  "Contigo todo gira distinto",
+  "Cada flor amarilla me recuerda a ti",
+  "Eres luz en mi noche",
+  "Gracias por existir",
+  "Feliz Día de las Flores Amarillas 🌻"
+];
+// Pega aquí fotos como data URI o usa el botón de la pantalla inicial
+let FOTOS = [];
+// ===============================
+
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let W,H,cx,cy,R,dpr=Math.min(devicePixelRatio||1,2);
+function size(){W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);cx=W/2;cy=H/2;R=Math.min(W,H)*0.46}
+addEventListener('resize',size);size();
+
+const stars=Array.from({length:140},()=>({x:Math.random(),y:Math.random(),s:Math.random()*1.2+.2,p:Math.random()*6}));
+const cols=['#f7c948','#ffe9a0','#ffb347','#c9a7ff','#fff6d6'];
+const parts=Array.from({length:1100},()=>{
+  const arm=Math.floor(Math.random()*3),r=Math.pow(Math.random(),.7);
+  return{r,a:arm*2.094+r*5+(Math.random()-.5)*.55,c:cols[Math.floor(Math.random()*cols.length)],s:Math.random()*1.5+.3}
+});
+
+const flowers=Array.from({length:12},(_,i)=>({o:i/12,a:Math.random()*6.283}));
+const items=[];
+function addItem(el,i,n){document.body.appendChild(el);items.push({el,ph:i/n,ang0:i*2.4})}
+function build(){
+  items.splice(0).forEach(o=>o.el.remove());
+  const all=[];
+  FRASES.forEach(t=>{const d=document.createElement('div');d.className='item t';d.textContent=t;all.push(d)});
+  FOTOS.forEach((u,i)=>{const im=new Image();im.src=u;im.className='item p';im.alt='';
+    all.splice(Math.min(1+i*2,all.length),0,im)});
+  all.forEach((el,i)=>addItem(el,i,all.length));
+}
+build();
+
+let started=false,t0=0;
+function begin(){
+  if(started)return;started=true;
+  document.getElementById('start').classList.add('off');
+  t0=performance.now();
+  // Música: sube un archivo llamado musica.mp3 junto a index.html
+  try{const a=new Audio('musica.mp3');a.loop=true;a.volume=.7;a.play().catch(()=>{})}catch(e){}
+}
+const st=document.getElementById('start');
+st.addEventListener('click',begin);
+st.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')begin()});
+document.getElementById('f').addEventListener('change',e=>{
+  FOTOS=[...e.target.files].slice(0,8).map(f=>URL.createObjectURL(f));build();
+});
+
+const CYCLE=9000; // ms que tarda cada frase/foto en cruzar
+function frame(now){
+  ctx.fillStyle='#05030d';ctx.fillRect(0,0,W,H);
+  stars.forEach(s=>{ctx.globalAlpha=.4+.4*Math.sin(now/900+s.p);ctx.fillStyle='#fff';ctx.fillRect(s.x*W,s.y*H,s.s,s.s)});
+  ctx.globalAlpha=1;
+  const rot=now/22000;
+  // nebulosa
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,R*1.1);
+  g.addColorStop(0,'rgba(120,70,200,.22)');g.addColorStop(.6,'rgba(247,201,72,.07)');g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // espiral
+  parts.forEach(p=>{
+    const a=p.a+rot*(1.6-p.r),rr=p.r*R+R*.1;
+    ctx.globalAlpha=.85-p.r*.45;ctx.fillStyle=p.c;
+    ctx.fillRect(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr*.62,p.s,p.s);
+  });
+  ctx.globalAlpha=1;
+  // anillo dorado
+  ctx.save();ctx.translate(cx,cy);ctx.scale(1,.62);
+  ctx.shadowColor='#f7c948';ctx.shadowBlur=26;
+  const ring=ctx.createLinearGradient(-R*.2,0,R*.2,0);
+  ring.addColorStop(0,'#ffb347');ring.addColorStop(.5,'#fff1b8');ring.addColorStop(1,'#f7c948');
+  ctx.strokeStyle=ring;ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,0,R*.17,0,6.283);ctx.stroke();
+  ctx.lineWidth=1.5;ctx.globalAlpha=.55;ctx.beginPath();ctx.arc(0,0,R*.215,0,6.283);ctx.stroke();
+  ctx.globalAlpha=1;ctx.shadowBlur=0;ctx.restore();
+  // arco de luz que se curva sobre el agujero negro
+  ctx.save();ctx.shadowColor='#f7c948';ctx.shadowBlur=18;ctx.strokeStyle='rgba(255,236,160,.8)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(cx,cy,R*.135,Math.PI*1.12,Math.PI*1.88);ctx.stroke();ctx.restore();
+  // flores amarillas girando hacia el centro
+  ctx.font='18px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  flowers.forEach(f=>{
+    const u=((now/26000)+f.o)%1,rr=R*(1.05-u*.85),a=f.a+u*5;
+    ctx.globalAlpha=Math.min(u*6,1)*Math.min((1-u)*5,1)*.9;
+    ctx.fillText('🌻',cx+Math.cos(a)*rr,cy+Math.sin(a)*rr*.62);
+  });
+  ctx.globalAlpha=1;
+  // agujero negro
+  ctx.fillStyle='#000';ctx.beginPath();ctx.arc(cx,cy,R*.12,0,6.283);ctx.fill();
+  // frases y fotos orbitando
+  if(started){
+    const el=now-t0;
+    items.forEach(o=>{
+      const u=((el/CYCLE)+o.ph*items.length*.38)%1; // 0..1 ciclo
+      const k=u*items.length/items.length;
+      const rad=R*(.25+u*.85),ang=o.ang0+u*1.6;
+      const x=cx+Math.cos(ang)*rad,y=cy+Math.sin(ang)*rad*.62;
+      const sc=.55+u*.6,op=Math.min(u*5,1)*Math.min((1-u)*4,1);
+      o.el.style.opacity=op;
+      o.el.style.transform=`translate(${x}px,${y}px) translate(-50%,-50%) scale(${sc})`;
+    });
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
